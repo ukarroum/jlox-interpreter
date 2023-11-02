@@ -45,9 +45,9 @@
     EOF
 end
 
-struct Token
+@kwdef struct Token
     type::TokenType
-    lexeme::String
-    literal
+    lexeme::String = ""
+    literal = nothing
     line::Int
 end
