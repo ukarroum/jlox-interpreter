@@ -1,4 +1,5 @@
 include("scanner.jl")
+include("parser.jl")
 
 
 function execute_file(file)
@@ -11,7 +12,8 @@ function repl()
 end
 
 function run(code)
-    scan(code)
+    tokens = scan(code)
+    parse(tokens)
 end
 
 
