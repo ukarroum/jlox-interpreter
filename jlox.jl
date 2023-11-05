@@ -4,8 +4,8 @@ include("interpreter.jl")
 
 
 function execute_file(file)
-    tokens = run(readlines(file))
-    println(tokens)
+    result = run(read(file, String))
+    println(result)
 end
 
 function repl()
