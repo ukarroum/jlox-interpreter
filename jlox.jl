@@ -1,5 +1,6 @@
 include("scanner.jl")
 include("parser.jl")
+include("interpreter.jl")
 
 
 function execute_file(file)
@@ -13,7 +14,8 @@ end
 
 function run(code)
     tokens = scan(code)
-    parse(tokens)
+    ast = parse_tokens(tokens)
+    interpret(ast)
 end
 
 

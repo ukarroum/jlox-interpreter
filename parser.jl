@@ -114,9 +114,8 @@ function primary(tokens)
     tokens, token = match(tokens, NUMBER, STRING, TRUE, FALSE, NIL)
 
     if !isnothing(token)
-        return tokens, Literal(token)
+        return tokens, Literal(token.literal)
     else
-        println(tokens)
         tokens, token = match(tokens, RIGHT_PAREN)
         if !isnothing(token)
             tokens, expr = expression(tokens)
@@ -129,7 +128,7 @@ function primary(tokens)
 end
 
 
-function parse(tokens)
+function parse_tokens(tokens)
     _, ast = expression(tokens)
 
     ast

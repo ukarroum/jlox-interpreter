@@ -108,7 +108,7 @@ function scan(code)
                 if j > length(line)
                     error(line_nb, "Unclosed string")
                 else
-                    push!(tokens, Token(type=STRING, lexeme=line[i + 1:j - 1], line=line_nb))
+                    push!(tokens, Token(type=STRING, lexeme=line[i + 1:j - 1], literal=line[i + 1:j - 1], line=line_nb))
                     i = j
                 end
             elseif isnumeric(c)
@@ -123,7 +123,7 @@ function scan(code)
                         j += 1
                     end
                 end
-                push!(tokens, Token(type=NUMBER, lexeme=line[i:j - 1], line=line_nb))
+                push!(tokens, Token(type=NUMBER, lexeme=line[i:j - 1], literal=parse('.' in line[i:j - 1] ? Float64 : Int64 , line[i:j - 1]), line=line_nb))
                 i = j
             elseif isletter(c)
                 j = i + 1
@@ -133,7 +133,15 @@ function scan(code)
                 lexeme = line[i:j - 1]
 
                 if haskey(keywords, lexeme)
-                    push!(tokens, Token(type=keywords[lexeme], lexeme=lexeme, line=line_nb))
+                    if lexeme == "true"
+                        literal = true
+                    elseif lexeme == "false"
+                        literal = false
+                    else
+                        literal = nothing
+                    end
+
+                    push!(tokens, Token(type=keywords[lexeme], lexeme=lexeme, literal=literal, line=line_nb))
                 else
                     push!(tokens, Token(type=IDENTIFIER, lexeme=lexeme, line=line_nb))
                 end
