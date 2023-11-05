@@ -156,5 +156,7 @@ function scan(code)
         i += 1
     end
 
+    push!(tokens, Token(type=EOF, line=line_nb))
+
     tokens
 end
