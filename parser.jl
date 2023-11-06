@@ -1,6 +1,7 @@
 include("tokens.jl")
 
 abstract type Expr end
+abstract type Stmt end
 
 struct Binary <: Expr
     left::Expr
@@ -21,6 +22,14 @@ struct Unary <: Expr
     right::Expr
 end
 
+struct ExprStmt <: Stmt
+    expr::Expr
+end
+
+struct Print <: Stmt
+    expr::Expr
+end
+
 
 function match(tokens, token_types...)
     if isempty(tokens)
@@ -37,6 +46,38 @@ function match(tokens, token_types...)
     return tokens, nothing
 end
 
+
+function statement(tokens)
+    if tokens[1].type == PRINT
+        printexpr(tokens[2:end])
+    else
+        exprstmt(tokens)
+    end
+end
+
+function exprstmt(tokens)
+    tokens, expr = expression(tokens)
+
+    tokens, token = match(tokens, SEMICOLON)
+
+    if isnothing(token)
+        Base.error("Parsing issue, missing ';'")
+    end
+
+    return tokens, ExprStmt(expr)
+end
+
+function printexpr(tokens)
+    tokens, expr = expression(tokens)
+
+    tokens, token = match(tokens, SEMICOLON)
+
+    if isnothing(token)
+        Base.error("Parssing issue, missing ';'")
+    end
+
+    return tokens, Print(expr)
+end
 
 function expression(tokens)
     equality(tokens)
@@ -129,7 +170,12 @@ end
 
 
 function parse_tokens(tokens)
-    _, ast = expression(tokens)
+    ast = []
+
+    while(tokens[1].type != EOF)
+        tokens, stmt = statement(tokens)
+        push!(ast, stmt)
+    end
 
     ast
 end

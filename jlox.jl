@@ -4,8 +4,7 @@ include("interpreter.jl")
 
 
 function execute_file(file)
-    result = run(read(file, String))
-    println(result)
+    run(read(file, String))
 end
 
 function repl()
