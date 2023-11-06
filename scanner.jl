@@ -130,7 +130,7 @@ function scan(code)
                 end
             end
             push!(tokens, Token(type=NUMBER, lexeme=code[i:j - 1], literal=parse('.' in code[i:j - 1] ? Float64 : Int64 , code[i:j - 1]), line=line_nb))
-            i = j
+            i = j - 1
         elseif isletter(c)
             j = i + 1
             while j <= length(code) && (isnumeric(code[j]) || isletter(code[j]))
@@ -151,7 +151,7 @@ function scan(code)
             else
                 push!(tokens, Token(type=IDENTIFIER, lexeme=lexeme, line=line_nb))
             end
-            i = j
+            i = j - 1
         end
         i += 1
     end
