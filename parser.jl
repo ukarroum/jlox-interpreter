@@ -30,6 +30,23 @@ struct Print <: Stmt
     expr::Expr
 end
 
+struct Var <: Stmt
+    name::Token
+    val::Expr
+end
+
+struct Variable <: Expr
+    name::String
+end
+
+struct Assign <: Expr
+    name::String
+    val::Expr
+end
+
+struct Block <: Stmt
+    stmts::Vector{Stmt}
+end
 
 function match(tokens, token_types...)
     if isempty(tokens)
@@ -46,13 +63,66 @@ function match(tokens, token_types...)
     return tokens, nothing
 end
 
+function declaration(tokens)
+    if tokens[1].type == VAR
+        var_declaration(tokens[2:end])
+    else
+        statement(tokens)
+    end
+end
+
+function var_declaration(tokens)
+    tokens, identifier = match(tokens, IDENTIFIER)
+
+    if isnothing(identifier)
+        Base.error("Parsing issue missing identifier after 'var'")
+    end
+
+    tokens, token = match(tokens, EQUAL)
+
+    if isnothing(token)
+        val = nothing
+    else
+        tokens, val = expression(tokens)
+    end
+
+    tokens, token = match(tokens, SEMICOLON)
+
+    if isnothing(token)
+        Base.error("Parsing issue, missing ';'")
+    end
+
+    tokens, Var(identifier, val)
+end
+
 
 function statement(tokens)
     if tokens[1].type == PRINT
         printexpr(tokens[2:end])
+    elseif tokens[1].type == LEFT_PAREN
+        block(tokens[2:end])
     else
         exprstmt(tokens)
     end
+end
+
+function block(tokens)
+    statements = []
+
+    tokens, token = match(tokens, RIGHT_BRACE)
+
+    while !isempty(tokens) && isnothing(token)
+        tokens, stmt = declaration(tokens)
+        push!(statements, stmt)
+
+        tokens, token = match(tokens, RIGHT_BRACE)
+    end
+
+    if isempty(tokens)
+        Base.error("Missing '}'")
+    end
+    
+    tokens, Block(statements)
 end
 
 function exprstmt(tokens)
@@ -80,9 +150,25 @@ function printexpr(tokens)
 end
 
 function expression(tokens)
-    equality(tokens)
+    assignement(tokens)
 end
 
+function assignement(tokens)
+    tokens, expr = equality(tokens)
+
+    tokens, token = match(tokens, EQUAL)
+
+    if !isnothing(token)
+        tokens, val = assignement(tokens)
+
+        if expr isa Variable
+            tokens, Assign(expr.name, val)
+        else
+            Base.error("Expected r-expression")
+        end
+    end
+    tokens, expr
+end
 
 function equality(tokens)
     tokens, expr = comparison(tokens)
@@ -152,17 +238,23 @@ function unary(tokens)
 end
 
 function primary(tokens)
-    tokens, token = match(tokens, NUMBER, STRING, TRUE, FALSE, NIL)
+    tokens, token = match(tokens, NUMBER, STRING, TRUE, FALSE, NIL, IDENTIFIER)
 
     if !isnothing(token)
-        return tokens, Literal(token.literal)
+        if token.type == IDENTIFIER
+            tokens, Variable(token.name)
+        else
+            tokens, Literal(token.literal)
+        end
     else
         tokens, token = match(tokens, RIGHT_PAREN)
         if !isnothing(token)
             tokens, expr = expression(tokens)
             tokens, token = match(tokens, LEFT_PAREN)
             if !isnothing(token)
-                return tokens, Grouping(expr)
+                tokens, Grouping(expr)
+            else
+                Base.error("Missing ')'")
             end
         end
     end
@@ -173,7 +265,7 @@ function parse_tokens(tokens)
     ast = []
 
     while(tokens[1].type != EOF)
-        tokens, stmt = statement(tokens)
+        tokens, stmt = declaration(tokens)
         push!(ast, stmt)
     end
 
