@@ -84,7 +84,7 @@ function evaluate(expr::Print, env)
 end
 
 function evaluate(expr::Var, env)
-    env[expr.name] = evaluate(expr.val, env)
+    env.vars[expr.name.lexeme] = evaluate(expr.val, env)
     return
 end
 
@@ -106,4 +106,36 @@ function execute_block(expr::Block, env)
     for stmt in expr.stmts
         evaluate(stmt, env)
     end
+end
+
+function evaluate(expr::IfStmt, env)
+    if evaluate(expr.condition, env)
+        evaluate(expr.thenBr, env)
+    elseif !isnothing(expr.elseBr)
+        evaluate(expr.elseBr, env)
+    end
+
+    return
+end
+
+function evaluate(expr::Logical, env)
+    left = evaluate(expr.left, env)
+
+    if expr.operator.type == OR
+        if left
+            return left
+        end
+    else !left
+        return left
+    end
+    
+    evaluate(expr.right, env)
+end
+
+function evaluate(expr::While, env)
+    while expr.condition
+        evaluate(expr.body, env)
+    end
+
+    return
 end

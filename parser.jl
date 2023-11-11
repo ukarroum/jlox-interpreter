@@ -17,6 +17,12 @@ struct Literal <: Expr
     value
 end
 
+struct Logical <: Expr
+    left::Expr
+    operator::Token
+    right::Expr
+end
+
 struct Unary <: Expr
     operator::Token
     right::Expr
@@ -46,6 +52,17 @@ end
 
 struct Block <: Stmt
     stmts::Vector{Stmt}
+end
+
+struct IfStmt <: Stmt
+    condition::Expr
+    thenBr::Stmt
+    elseBr::Stmt
+end
+
+struct While <: Stmt
+    condition::Expr
+    body::Stmt
 end
 
 function match(tokens, token_types...)
@@ -97,13 +114,117 @@ end
 
 
 function statement(tokens)
-    if tokens[1].type == PRINT
+    if tokens[1].type == FOR
+        forstmt(tokens[2:end])
+    elseif tokens[1].type == IF
+        ifstmt(tokens[2:end])
+    elseif tokens[1].type == PRINT
         printexpr(tokens[2:end])
-    elseif tokens[1].type == LEFT_PAREN
+    elseif tokens[1].type == WHILE
+        while_stmt(tokens[2:end])
+    elseif tokens[1].type == LEFT_BRACE
         block(tokens[2:end])
     else
         exprstmt(tokens)
     end
+end
+
+function forstmt(tokens)
+    tokens, token = match(tokens, RIGHT_PAREN)
+    if isnothing(token)
+        Base.error("Missing '(' after for")
+    end
+
+    tokens, token = match(tokens, SEMICOLON, VAR)
+
+    if !isnothing(token) && token.type == SEMICOLON
+        initializer = nothing
+    elseif !isnothing(token) && token.type == VAR
+        tokens, initializer = var_declaration(tokens)
+    else
+        tokens, initializer = exprstmt(tokens)
+    end
+
+    tokens, token = match(tokens, SEMICOLON)
+
+    if !isnothing(token)
+        condition = nothing
+    else
+        tokens, condition = expression(tokens)
+    end
+
+    tokens, token = match(tokens, SEMICOLON)
+
+    if !isnothing(token)
+        incr = nothing
+    else
+        tokens, condition = expression(tokens)
+    end
+
+    tokens, token = match(tokens, LEFT_PAREN)
+    if isnothing(token)
+        Base.error("Missing ')' after for")
+    end
+
+    tokens, body = statement(tokens)
+
+    if !isnothing(incr)
+        body = Block([body, ExprStmt(incr)])
+    end
+
+    if isnothing(condition)
+        condition = Literal(true)
+    end
+
+    body = While(condition, body)
+
+    if !isnothing(initializer)
+        body = Block([initializer, body])
+    end
+
+    tokens, body
+end
+
+function while_stmt(tokens)
+    tokens, token = match(tokens, RIGHT_PAREN)
+    if isnothing(token)
+        Base.error("Missing '(' after while")
+    end
+
+    tokens, condition = expression(tokens)
+
+    tokens, token = match(token, LEFT_PAREN)
+    if isnothing(token)
+        Base.error("Missing ')' after while")
+    end
+
+    tokens, stmt = statement(tokens)
+    tokens, While(condition, stmt)
+end
+
+function ifstmt(tokens)
+    tokens, token = match(tokens, RIGHT_PAREN)
+    if isnothing(token)
+        Base.error("Missing '(' after if")
+    end
+    
+    tokens, condition = expression(tokens)
+
+    tokens, token = match(tokens, LEFT_PAREN)
+    if isnothing(token)
+        Base.error("Missing ')' after if")
+    end
+
+    tokens, thenBr = statement(tokens)
+
+    tokens, token = match(tokens, ELSE)
+    if !isnothing(token)
+        elseBr = statement(tokens)
+    else
+        elseBr = nothing
+    end
+    
+    tokens, IfStmt(condition, thenBr, elseBr)
 end
 
 function block(tokens)
@@ -154,7 +275,7 @@ function expression(tokens)
 end
 
 function assignement(tokens)
-    tokens, expr = equality(tokens)
+    tokens, expr = or(tokens)
 
     tokens, token = match(tokens, EQUAL)
 
@@ -168,6 +289,32 @@ function assignement(tokens)
         end
     end
     tokens, expr
+end
+
+function or(tokens)
+    tokens, left = and(tokens)
+
+    tokens, op = match(tokens, OR)
+
+    if !isnothing(op)
+        tokens, right = and(tokens)
+        tokens, Logical(left, op, right)
+    else
+        tokens, left
+    end
+end
+
+function and(tokens)
+    tokens, left = equality(tokens)
+
+    tokens, op = match(tokens, AND)
+
+    if !isnothing(op)
+        tokens, right = equality(tokens)
+        tokens, Logical(left, op, right)
+    else
+        tokens, left
+    end
 end
 
 function equality(tokens)
@@ -242,7 +389,7 @@ function primary(tokens)
 
     if !isnothing(token)
         if token.type == IDENTIFIER
-            tokens, Variable(token.name)
+            tokens, Variable(token.lexeme)
         else
             tokens, Literal(token.literal)
         end
