@@ -9,6 +9,11 @@ struct Binary <: Expr
     right::Expr
 end
 
+struct Call <: Expr
+    callee::Expr
+    args::Vector{Expr}
+end
+
 struct Grouping <: Expr
     expression::Expr
 end
@@ -38,7 +43,7 @@ end
 
 struct Var <: Stmt
     name::Token
-    val::Expr
+    val::Union{Expr, Nothing}
 end
 
 struct Variable <: Expr
@@ -52,6 +57,12 @@ end
 
 struct Block <: Stmt
     stmts::Vector{Stmt}
+end
+
+struct Function <: Expr
+    name::Token
+    params::Vector{Token}
+    body::Vector{Stmt}
 end
 
 struct IfStmt <: Stmt
@@ -83,10 +94,43 @@ end
 function declaration(tokens)
     if tokens[1].type == VAR
         var_declaration(tokens[2:end])
+    elseif tokens[1].type == FUN
+        function_declaration(tokens[2:end])
     else
         statement(tokens)
     end
 end
+
+function function_declaration(tokens)
+    tokens, name = match(tokens, IDENTIFIER)
+    if isnothing(name)
+        Base.error("Expected a valid identifier after fun")
+    end
+
+    tokens, token = match(tokens, LEFT_PAREN)
+
+    if !isnothing(token)
+        arguments = []
+
+        tokens, token = match(tokens, RIGHT_PAREN)
+        while isnothing(token) || token.type != RIGHT_PAREN
+            tokens, arg = expression(tokens)
+            push!(arguments, arg)
+
+            if size(arguments) >= 255
+                Base.error("Exceded 255 arguments")
+            end
+
+            tokens, token = match(tokens, COMMA, RIGHT_PAREN)
+        end
+
+        tokens, f_block = block(tokens)
+        tokens, Function(name, arguments, f_block.stmts)
+    else
+        Base.error("Expected '('")
+    end
+end
+
 
 function var_declaration(tokens)
     tokens, identifier = match(tokens, IDENTIFIER)
@@ -130,7 +174,7 @@ function statement(tokens)
 end
 
 function forstmt(tokens)
-    tokens, token = match(tokens, RIGHT_PAREN)
+    tokens, token = match(tokens, LEFT_PAREN)
     if isnothing(token)
         Base.error("Missing '(' after for")
     end
@@ -154,14 +198,18 @@ function forstmt(tokens)
     end
 
     tokens, token = match(tokens, SEMICOLON)
+    if isnothing(token)
+        Base.error("Expected ';'")
+    end
 
+    tokens, token = match(tokens, RIGHT_PAREN)
     if !isnothing(token)
         incr = nothing
     else
-        tokens, condition = expression(tokens)
+        tokens, incr = expression(tokens)
     end
 
-    tokens, token = match(tokens, LEFT_PAREN)
+    tokens, token = match(tokens, RIGHT_PAREN)
     if isnothing(token)
         Base.error("Missing ')' after for")
     end
@@ -381,7 +429,33 @@ function unary(tokens)
         return tokens, Unary(operator, expr)
     end
     
-    primary(tokens)
+    callexpr(tokens)
+end
+
+function callexpr(tokens)
+    tokens, callee = primary(tokens)
+
+    tokens, token = match(tokens, LEFT_PAREN)
+
+    if !isnothing(token)
+        arguments = []
+
+        tokens, token = match(tokens, RIGHT_PAREN)
+        while isnothing(token) || token.type != RIGHT_PAREN
+            tokens, arg = expression(tokens)
+            push!(arguments, arg)
+
+            if size(arguments) >= 255
+                Base.error("Exceded 255 arguments")
+            end
+
+            tokens, token = match(tokens, COMMA, RIGHT_PAREN)
+        end
+
+        tokens, Call(callee, arguments)
+    else
+        tokens, callee
+    end
 end
 
 function primary(tokens)

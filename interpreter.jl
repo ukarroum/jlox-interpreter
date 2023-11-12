@@ -6,6 +6,11 @@ struct Env
     enclosing
 end
 
+struct LoxCallable
+    arity::Int
+    call
+end
+
 function get_var(env, var_name)
     if haskey(env.vars, var_name)
         env.vars[var_name]
@@ -29,7 +34,10 @@ end
 function interpret(stmts)
     env = Env(Dict(), nothing)
 
+    env.vars["clock"] = LoxCallable(0, time)
+
     for stmt in stmts
+        println(stmt)
         evaluate(stmt, env)
     end
 end
@@ -84,7 +92,7 @@ function evaluate(expr::Print, env)
 end
 
 function evaluate(expr::Var, env)
-    env.vars[expr.name.lexeme] = evaluate(expr.val, env)
+    env.vars[expr.name.lexeme] = isnothing(expr.val) ? evaluate(expr.val, env) : nothing
     return
 end
 
@@ -138,4 +146,16 @@ function evaluate(expr::While, env)
     end
 
     return
+end
+
+function evaluate(expr::Call, env)
+    callee = evaluate(expr.callee, env)
+
+    arguments = []
+
+    for arg in expr.args
+        puhs!(arguments, evaluate(arg, env))
+    end
+
+    callee(arguments)
 end
