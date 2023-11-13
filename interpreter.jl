@@ -37,7 +37,6 @@ function interpret(stmts)
     env.vars["clock"] = LoxCallable(0, time)
 
     for stmt in stmts
-        println(stmt)
         evaluate(stmt, env)
     end
 end
@@ -92,7 +91,7 @@ function evaluate(expr::Print, env)
 end
 
 function evaluate(expr::Var, env)
-    env.vars[expr.name.lexeme] = isnothing(expr.val) ? evaluate(expr.val, env) : nothing
+    env.vars[expr.name.lexeme] = !isnothing(expr.val) ? evaluate(expr.val, env) : nothing
     return
 end
 
@@ -141,7 +140,7 @@ function evaluate(expr::Logical, env)
 end
 
 function evaluate(expr::While, env)
-    while expr.condition
+    while evaluate(expr.condition, env)
         evaluate(expr.body, env)
     end
 

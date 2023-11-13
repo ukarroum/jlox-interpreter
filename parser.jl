@@ -328,10 +328,11 @@ function assignement(tokens)
     tokens, token = match(tokens, EQUAL)
 
     if !isnothing(token)
+    
         tokens, val = assignement(tokens)
 
         if expr isa Variable
-            tokens, Assign(expr.name, val)
+            return tokens, Assign(expr.name, val)
         else
             Base.error("Expected r-expression")
         end
