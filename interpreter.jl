@@ -11,6 +11,16 @@ struct LoxCallable
     call
 end
 
+struct ReturnEx <: Exception
+    val
+end
+
+struct Closure
+    fct::Function
+    env::Env
+end
+
+
 function get_var(env, var_name)
     if haskey(env.vars, var_name)
         env.vars[var_name]
@@ -77,6 +87,17 @@ function evaluate(expr::Binary, env)
     )
     left = evaluate(expr.left, env)
     right = evaluate(expr.right, env)
+
+    # special case for string concat
+    if left isa String && right isa String
+        if expr.operator.type == STAR
+            Base.error("Operation * not permited on strings")
+        end
+
+        if expr.operator.type == PLUS
+            return left * right
+        end
+    end
 
     bin_ops[expr.operator.type](left, right)
 end
@@ -148,13 +169,43 @@ function evaluate(expr::While, env)
 end
 
 function evaluate(expr::Call, env)
-    callee = evaluate(expr.callee, env)
-
     arguments = []
 
     for arg in expr.args
-        puhs!(arguments, evaluate(arg, env))
+        push!(arguments, evaluate(arg, env))
     end
 
-    callee(arguments)
+    call(get_var(env, expr.callee.name), arguments)
+end
+
+function evaluate(expr::Function, env)
+    env.vars[expr.name.lexeme] = Closure(expr, env)
+end
+
+function evaluate(expr::Return, env)
+    ret = nothing
+
+    if !isnothing(expr)
+        ret = evaluate(expr.val, env)
+    end
+
+    throw(ReturnEx(ret))
+end
+
+function call(closure::Closure, args)
+    fct_env = Env(Dict(), closure.env)
+
+    for i = 1:size(args)[1]
+        fct_env.vars[closure.fct.params[i]] = args[i]
+    end
+
+    try
+        execute_block(Block(closure.fct.body), fct_env)
+    catch e
+        if e isa ReturnEx
+            return e.val
+        else
+            rethrow(e)
+        end
+    end
 end

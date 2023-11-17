@@ -61,20 +61,25 @@ end
 
 struct Function <: Expr
     name::Token
-    params::Vector{Token}
+    params::Vector{String}
     body::Vector{Stmt}
 end
 
 struct IfStmt <: Stmt
     condition::Expr
     thenBr::Stmt
-    elseBr::Stmt
+    elseBr::Union{Stmt, Nothing}
 end
 
 struct While <: Stmt
     condition::Expr
     body::Stmt
 end
+
+struct Return <: Stmt
+    val::Expr
+end
+
 
 function match(tokens, token_types...)
     if isempty(tokens)
@@ -115,15 +120,19 @@ function function_declaration(tokens)
         tokens, token = match(tokens, RIGHT_PAREN)
         while isnothing(token) || token.type != RIGHT_PAREN
             tokens, arg = expression(tokens)
-            push!(arguments, arg)
+            push!(arguments, arg.name)
 
-            if size(arguments) >= 255
+            if size(arguments)[1] >= 255
                 Base.error("Exceded 255 arguments")
             end
 
             tokens, token = match(tokens, COMMA, RIGHT_PAREN)
         end
 
+        tokens, token = match(tokens, LEFT_BRACE)
+        if isnothing(token)
+            Base.error("Expected '{'")
+        end
         tokens, f_block = block(tokens)
         tokens, Function(name, arguments, f_block.stmts)
     else
@@ -164,6 +173,8 @@ function statement(tokens)
         ifstmt(tokens[2:end])
     elseif tokens[1].type == PRINT
         printexpr(tokens[2:end])
+    elseif tokens[1].type == RETURN
+        returnStmt(tokens[2:end])    
     elseif tokens[1].type == WHILE
         while_stmt(tokens[2:end])
     elseif tokens[1].type == LEFT_BRACE
@@ -171,6 +182,21 @@ function statement(tokens)
     else
         exprstmt(tokens)
     end
+end
+
+function returnStmt(tokens)
+    val = nothing
+
+    tokens, token = match(tokens, SEMICOLON)
+    if isnothing(token)
+        tokens, val = expression(tokens)
+        tokens, token = match(tokens, SEMICOLON)
+        if isnothing(token)
+            Base.error("Expected ';'")
+        end
+    end
+
+    tokens, Return(val)
 end
 
 function forstmt(tokens)
@@ -251,14 +277,14 @@ function while_stmt(tokens)
 end
 
 function ifstmt(tokens)
-    tokens, token = match(tokens, RIGHT_PAREN)
+    tokens, token = match(tokens, LEFT_PAREN)
     if isnothing(token)
         Base.error("Missing '(' after if")
     end
     
     tokens, condition = expression(tokens)
 
-    tokens, token = match(tokens, LEFT_PAREN)
+    tokens, token = match(tokens, RIGHT_PAREN)
     if isnothing(token)
         Base.error("Missing ')' after if")
     end
@@ -425,6 +451,7 @@ end
 function unary(tokens)
     tokens, operator = match(tokens, BANG, MINUS)
 
+
     if !isnothing(operator)
         tokens, expr = unary(tokens)
         return tokens, Unary(operator, expr)
@@ -446,7 +473,7 @@ function callexpr(tokens)
             tokens, arg = expression(tokens)
             push!(arguments, arg)
 
-            if size(arguments) >= 255
+            if size(arguments)[1] >= 255
                 Base.error("Exceded 255 arguments")
             end
 
