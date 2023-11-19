@@ -13,7 +13,7 @@ end
 
 function run(code)
     tokens = scan(code)
-    ast = parse_tokens(tokens)
+    ast::Vector{Stmt} = parse_tokens(tokens)
     interpret(ast)
 end
 

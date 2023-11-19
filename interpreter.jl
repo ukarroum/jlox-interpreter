@@ -1,5 +1,6 @@
 include("scanner.jl")
 include("parser.jl")
+include("resolver.jl")
 
 struct Env
     vars
@@ -19,7 +20,6 @@ struct Closure
     fct::Function
     env::Env
 end
-
 
 function get_var(env, var_name)
     if haskey(env.vars, var_name)
@@ -41,26 +41,29 @@ function set_var(env, var_name, val)
     end
 end
 
-function interpret(stmts)
+function interpret(stmts::Vector{Stmt})
     env = Env(Dict(), nothing)
+    locals = Dict()
 
     env.vars["clock"] = LoxCallable(0, time)
 
+    resolve(stmts, [], locals)
+
     for stmt in stmts
-        evaluate(stmt, env)
+        evaluate(stmt, env, locals)
     end
 end
 
-function evaluate(expr::Literal, env)
+function evaluate(expr::Literal, env, locals)
     expr.value
 end
 
-function evaluate(expr::Grouping, env)
-    evaluate(expr.expression, env)
+function evaluate(expr::Grouping, env, locals)
+    evaluate(expr.expression, env, locals)
 end
 
-function evaluate(expr::Unary, env)
-    right = evaluate(expr.right, env)
+function evaluate(expr::Unary, env, locals)
+    right = evaluate(expr.right, env, locals)
 
     if expr.operator.type == MINUS
         return -right
@@ -72,7 +75,7 @@ function evaluate(expr::Unary, env)
     end
 end
 
-function evaluate(expr::Binary, env)
+function evaluate(expr::Binary, env, locals)
     bin_ops = Dict(
         BANG_EQUAL => !=,
         EQUAL_EQUAL => ==,
@@ -85,8 +88,8 @@ function evaluate(expr::Binary, env)
         SLASH => /,
         STAR => *
     )
-    left = evaluate(expr.left, env)
-    right = evaluate(expr.right, env)
+    left = evaluate(expr.left, env, locals)
+    right = evaluate(expr.right, env, locals)
 
     # special case for string concat
     if left isa String && right isa String
@@ -102,52 +105,80 @@ function evaluate(expr::Binary, env)
     bin_ops[expr.operator.type](left, right)
 end
 
-function evaluate(expr::Stmt, env)
-    evaluate(expr.expr, env)
+function evaluate(expr::Stmt, env, locals)
+    evaluate(expr.expr, env, locals)
     return
 end
 
-function evaluate(expr::Print, env)
-    println(evaluate(expr.expr, env))
+function evaluate(expr::Print, env, locals)
+    println(evaluate(expr.expr, env, locals))
 end
 
-function evaluate(expr::Var, env)
-    env.vars[expr.name.lexeme] = !isnothing(expr.val) ? evaluate(expr.val, env) : nothing
+function evaluate(expr::Var, env, locals)
+    env.vars[expr.name.lexeme] = !isnothing(expr.val) ? evaluate(expr.val, env, locals) : nothing
     return
 end
 
-function evaluate(expr::Variable, env)
-    get_var(env, expr.name)
+function evaluate(expr::Variable, env, locals)
+    lookup_var(expr.name, expr, env, locals)
 end
 
-function evaluate(expr::Assign, env)
-    set_var(env, expr.name, evaluate(expr.val, env))
+function lookup_var(name, expr, env, locals)
+    new_env = env
+    if haskey(locals, expr)
+        i = locals[expr]
+        while i > 0
+            new_env = env.enclosing
+            i -= 1
+        end
+    else
+        while !isnothing(new_env.enclosing)
+            new_env = env.enclosing
+        end
+    end
+
+    new_env.vars[name]
 end
 
-function evaluate(expr::Block, env)
+function evaluate(expr::Assign, env, locals)
+    new_env = env
+    if haskety(locals, name)
+        for i in 1:locals[name]
+            new_env = env.enclosing
+        end
+    else
+        while !isnothing(new_env.enclosing)
+            new_env = env.enclosing
+        end
+    end
+
+    new_env.vars[expr.name] = evaluate(expr.val, env, locals)
+end
+
+function evaluate(expr::Block, env, locals)
     local_env = Env(Dict(), env)
 
-    execute_block(expr, local_env)
+    execute_block(expr, local_env, locals)
 end
 
-function execute_block(expr::Block, env)
+function execute_block(expr::Block, env, locals)
     for stmt in expr.stmts
-        evaluate(stmt, env)
+        evaluate(stmt, env, locals)
     end
 end
 
-function evaluate(expr::IfStmt, env)
-    if evaluate(expr.condition, env)
-        evaluate(expr.thenBr, env)
+function evaluate(expr::IfStmt, env, locals)
+    if evaluate(expr.condition, env, locals)
+        evaluate(expr.thenBr, env, locals)
     elseif !isnothing(expr.elseBr)
-        evaluate(expr.elseBr, env)
+        evaluate(expr.elseBr, env, locals)
     end
 
     return
 end
 
-function evaluate(expr::Logical, env)
-    left = evaluate(expr.left, env)
+function evaluate(expr::Logical, env, locals)
+    left = evaluate(expr.left, env, locals)
 
     if expr.operator.type == OR
         if left
@@ -157,42 +188,42 @@ function evaluate(expr::Logical, env)
         return left
     end
     
-    evaluate(expr.right, env)
+    evaluate(expr.right, env, locals)
 end
 
-function evaluate(expr::While, env)
-    while evaluate(expr.condition, env)
-        evaluate(expr.body, env)
+function evaluate(expr::While, env, locals)
+    while evaluate(expr.condition, env, locals)
+        evaluate(expr.body, env, locals)
     end
 
     return
 end
 
-function evaluate(expr::Call, env)
+function evaluate(expr::Call, env, locals)
     arguments = []
 
     for arg in expr.args
-        push!(arguments, evaluate(arg, env))
+        push!(arguments, evaluate(arg, env, locals))
     end
 
-    call(get_var(env, expr.callee.name), arguments)
+    call(get_var(env, expr.callee.name), arguments, locals)
 end
 
-function evaluate(expr::Function, env)
+function evaluate(expr::Function, env, locals)
     env.vars[expr.name.lexeme] = Closure(expr, env)
 end
 
-function evaluate(expr::Return, env)
+function evaluate(expr::Return, env, locals)
     ret = nothing
 
     if !isnothing(expr)
-        ret = evaluate(expr.val, env)
+        ret = evaluate(expr.val, env, locals)
     end
 
     throw(ReturnEx(ret))
 end
 
-function call(closure::Closure, args)
+function call(closure::Closure, args, locals)
     fct_env = Env(Dict(), closure.env)
 
     for i = 1:size(args)[1]
@@ -200,7 +231,7 @@ function call(closure::Closure, args)
     end
 
     try
-        execute_block(Block(closure.fct.body), fct_env)
+        execute_block(Block(closure.fct.body), fct_env, locals)
     catch e
         if e isa ReturnEx
             return e.val

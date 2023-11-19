@@ -59,7 +59,7 @@ struct Block <: Stmt
     stmts::Vector{Stmt}
 end
 
-struct Function <: Expr
+struct Function <: Stmt
     name::Token
     params::Vector{String}
     body::Vector{Stmt}
