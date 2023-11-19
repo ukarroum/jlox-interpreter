@@ -133,7 +133,7 @@ function lookup_var(name, expr, env, locals)
         end
     else
         while !isnothing(new_env.enclosing)
-            new_env = env.enclosing
+            new_env = new_env.enclosing
         end
     end
 

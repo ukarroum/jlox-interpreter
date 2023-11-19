@@ -48,11 +48,13 @@ end
 
 struct Variable <: Expr
     name::String
+    line::Integer
 end
 
 struct Assign <: Expr
     name::String
     val::Expr
+    line::Integer
 end
 
 struct Block <: Stmt
@@ -358,7 +360,7 @@ function assignement(tokens)
         tokens, val = assignement(tokens)
 
         if expr isa Variable
-            return tokens, Assign(expr.name, val)
+            return tokens, Assign(expr.name, val, expr.line)
         else
             Base.error("Expected r-expression")
         end
@@ -491,7 +493,7 @@ function primary(tokens)
 
     if !isnothing(token)
         if token.type == IDENTIFIER
-            tokens, Variable(token.lexeme)
+            tokens, Variable(token.lexeme, token.line)
         else
             tokens, Literal(token.literal)
         end
