@@ -14,6 +14,11 @@ struct Call <: Expr
     args::Vector{Expr}
 end
 
+struct Get <: Expr
+    obj::Expr
+    name::Token
+end
+
 struct Grouping <: Expr
     expression::Expr
 end
@@ -26,6 +31,12 @@ struct Logical <: Expr
     left::Expr
     operator::Token
     right::Expr
+end
+
+struct Set <: Expr
+    obj::Expr
+    name::Token
+    val::Expr
 end
 
 struct Unary <: Expr
@@ -82,6 +93,11 @@ struct Return <: Stmt
     val::Expr
 end
 
+struct Class <: Stmt
+    name::Token
+    methods::Vector{Function}
+end
+
 
 function match(tokens, token_types...)
     if isempty(tokens)
@@ -101,11 +117,33 @@ end
 function declaration(tokens)
     if tokens[1].type == VAR
         var_declaration(tokens[2:end])
+    elseif tokens[1].type == CLASS
+        class_declaration(tokens[2:end])
     elseif tokens[1].type == FUN
         function_declaration(tokens[2:end])
     else
         statement(tokens)
     end
+end
+
+function class_declaration(tokens)
+    tokens, name = match(tokens, IDENTIFIER)
+
+    tokens, token = match(tokens, LEFT_BRACE)
+    if isnothing(token)
+        Base.error("Expected {")
+    end
+
+    methods = []
+
+    tokens, token = match(tokens, RIGHT_BRACE)
+    while isnothing(token)
+        tokens, fct = function_declaration(tokens)
+        push!(methods, fct)
+        tokens, token = match(tokens, RIGHT_BRACE)
+    end
+
+    return tokens, Class(name, methods)
 end
 
 function function_declaration(tokens)
@@ -361,6 +399,8 @@ function assignement(tokens)
 
         if expr isa Variable
             return tokens, Assign(expr.name, val, expr.line)
+        elseif expr isa Get
+            return tokens, Set(expr.obj, expr.name, val)
         else
             Base.error("Expected r-expression")
         end
@@ -463,29 +503,39 @@ function unary(tokens)
 end
 
 function callexpr(tokens)
-    tokens, callee = primary(tokens)
+    tokens, expr = primary(tokens)
 
-    tokens, token = match(tokens, LEFT_PAREN)
+    while true
+        tokens, token = match(tokens, LEFT_PAREN, DOT)
 
-    if !isnothing(token)
-        arguments = []
+        if !isnothing(token) && token.type == LEFT_PAREN
+            arguments = []
 
-        tokens, token = match(tokens, RIGHT_PAREN)
-        while isnothing(token) || token.type != RIGHT_PAREN
-            tokens, arg = expression(tokens)
-            push!(arguments, arg)
+            tokens, token = match(tokens, RIGHT_PAREN)
+            while isnothing(token) || token.type != RIGHT_PAREN
+                tokens, arg = expression(tokens)
+                push!(arguments, arg)
 
-            if size(arguments)[1] >= 255
-                Base.error("Exceded 255 arguments")
+                if size(arguments)[1] >= 255
+                    Base.error("Exceded 255 arguments")
+                end
+
+                tokens, token = match(tokens, COMMA, RIGHT_PAREN)
             end
 
-            tokens, token = match(tokens, COMMA, RIGHT_PAREN)
+            expr = Call(expr, arguments)
+        elseif !isnothing(token) && token.type == DOT
+            tokens, name = match(tokens, IDENTIFIER)
+            if isnothing(name)
+                Base.error("Expected identifier after '.'")
+            end
+            expr = Get(expr, name)
+        else
+            break
         end
-
-        tokens, Call(callee, arguments)
-    else
-        tokens, callee
     end
+
+    tokens, expr
 end
 
 function primary(tokens)

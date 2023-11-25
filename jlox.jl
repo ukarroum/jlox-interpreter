@@ -17,8 +17,8 @@ function run(code)
     interpret(ast)
 end
 
-execute_file("test.lox")
 if size(ARGS)[1] == 0
+    execute_file("test.lox")
     repl()
 elseif size(ARGS)[1] == 1
     execute_file(ARGS[1])

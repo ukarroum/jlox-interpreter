@@ -21,6 +21,16 @@ struct Closure
     env::Env
 end
 
+struct LoxClass
+    class::Class
+    methods::Dict
+end
+
+struct LoxInstance
+    class::LoxClass
+    attrs::Dict
+end
+
 function get_var(env, var_name)
     if haskey(env.vars, var_name)
         env.vars[var_name]
@@ -142,8 +152,8 @@ end
 
 function evaluate(expr::Assign, env, locals)
     new_env = env
-    if haskety(locals, name)
-        for i in 1:locals[name]
+    if haskey(locals, expr.name)
+        for i in 1:locals[expr.name]
             new_env = env.enclosing
         end
     else
@@ -206,7 +216,9 @@ function evaluate(expr::Call, env, locals)
         push!(arguments, evaluate(arg, env, locals))
     end
 
-    call(get_var(env, expr.callee.name), arguments, locals)
+    calle = evaluate(expr.callee, env, locals)
+
+    call(calle, arguments, locals)
 end
 
 function evaluate(expr::Function, env, locals)
@@ -239,4 +251,36 @@ function call(closure::Closure, args, locals)
             rethrow(e)
         end
     end
+end
+
+function evaluate(expr::Class, env, locals)
+    env.vars[expr.name.lexeme] = LoxClass(expr, Dict())
+
+    for method in expr.methods
+        env.vars[expr.name.lexeme].methods[method.name.lexeme] =  Closure(method, env)
+    end
+end
+
+function call(class::LoxClass, args, locals)
+    LoxInstance(class, Dict())
+end
+
+function evaluate(expr::Get, env, locals)
+    instance = evaluate(expr.obj, env, locals)
+
+    if haskey(instance.attrs, expr.name.lexeme)
+        instance.attrs[expr.name.lexeme]
+    elseif haskey(instance.class.methods, expr.name.lexeme)
+        instance.class.methods[expr.name.lexeme]
+    else
+        Base.error("Couldn't resolve $expr.name.lexeme on $instance")
+    end
+
+end
+
+function evaluate(expr::Set, env, locals)
+    instance = evaluate(expr.obj, env, locals)
+    val = evaluate(expr.val, env, locals)
+
+    instance.attrs[expr.name.lexeme] = val
 end
