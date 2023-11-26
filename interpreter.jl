@@ -266,7 +266,17 @@ function evaluate(expr::Class, env, locals)
 end
 
 function call(class::LoxClass, args, locals)
-    LoxInstance(class, Dict())
+    instance = LoxInstance(class, Dict())
+
+    if haskey(class.methods, "init")
+        new_env = Env(Dict(), class.methods["init"].env)
+        new_env.vars["this"] = instance
+
+        call(Closure(class.methods["init"].fct, new_env), args, locals)
+    end
+
+    instance
+
 end
 
 function evaluate(expr::Get, env, locals)
