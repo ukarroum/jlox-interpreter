@@ -98,6 +98,11 @@ struct Class <: Stmt
     methods::Vector{Function}
 end
 
+struct This <: Expr
+    keyword::Token
+    line::Integer
+end
+
 
 function match(tokens, token_types...)
     if isempty(tokens)
@@ -539,11 +544,13 @@ function callexpr(tokens)
 end
 
 function primary(tokens)
-    tokens, token = match(tokens, NUMBER, STRING, TRUE, FALSE, NIL, IDENTIFIER)
+    tokens, token = match(tokens, NUMBER, STRING, TRUE, FALSE, NIL, IDENTIFIER, THIS)
 
     if !isnothing(token)
         if token.type == IDENTIFIER
             tokens, Variable(token.lexeme, token.line)
+        elseif token.type == THIS
+            tokens, This(token, token.line)
         else
             tokens, Literal(token.literal)
         end

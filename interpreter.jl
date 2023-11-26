@@ -133,6 +133,10 @@ function evaluate(expr::Variable, env, locals)
     lookup_var(expr.name, expr, env, locals)
 end
 
+function evaluate(expr::This, env, locals)
+    lookup_var("this", expr, env, locals)
+end
+
 function lookup_var(name, expr, env, locals)
     new_env = env
     if haskey(locals, expr)
@@ -271,7 +275,10 @@ function evaluate(expr::Get, env, locals)
     if haskey(instance.attrs, expr.name.lexeme)
         instance.attrs[expr.name.lexeme]
     elseif haskey(instance.class.methods, expr.name.lexeme)
-        instance.class.methods[expr.name.lexeme]
+        new_env = Env(Dict(), instance.class.methods[expr.name.lexeme].env)
+        new_env.vars["this"] = instance
+
+        Closure(instance.class.methods[expr.name.lexeme].fct, new_env)
     else
         Base.error("Couldn't resolve $expr.name.lexeme on $instance")
     end
