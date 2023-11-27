@@ -96,11 +96,17 @@ end
 struct Class <: Stmt
     name::Token
     methods::Vector{Function}
+    superclass::Union{Variable, Nothing}
 end
 
 struct This <: Expr
     keyword::Token
     line::Integer
+end
+
+struct Super <: Expr
+    keyword::Token
+    method::Token
 end
 
 
@@ -134,6 +140,17 @@ end
 function class_declaration(tokens)
     tokens, name = match(tokens, IDENTIFIER)
 
+    tokens, token = match(tokens, LESS)
+    if !isnothing(token)
+        tokens, superclass = match(tokens, IDENTIFIER)
+        if isnothing(superclass)
+            Base.error("Expected an identifier")
+        end
+        superclass = Variable(superclass.lexeme, superclass.line)
+    else
+        superclass = nothing
+    end
+
     tokens, token = match(tokens, LEFT_BRACE)
     if isnothing(token)
         Base.error("Expected {")
@@ -148,7 +165,7 @@ function class_declaration(tokens)
         tokens, token = match(tokens, RIGHT_BRACE)
     end
 
-    return tokens, Class(name, methods)
+    return tokens, Class(name, methods, superclass) 
 end
 
 function function_declaration(tokens)
@@ -544,11 +561,22 @@ function callexpr(tokens)
 end
 
 function primary(tokens)
-    tokens, token = match(tokens, NUMBER, STRING, TRUE, FALSE, NIL, IDENTIFIER, THIS)
+    tokens, token = match(tokens, NUMBER, STRING, TRUE, FALSE, NIL, IDENTIFIER, THIS, SUPER)
 
     if !isnothing(token)
         if token.type == IDENTIFIER
             tokens, Variable(token.lexeme, token.line)
+        elseif token.type == SUPER
+            keyword = token
+            tokens, token = match(tokens, DOT)
+            if isnothing(token)
+                Base.error("Expected '.'")
+            end
+            tokens, method = match(tokens, IDENTIFIER)
+            if isnothing(token)
+                Base.error("Expected Identifier")
+            end
+            tokens, Super(keyword, method)
         elseif token.type == THIS
             tokens, This(token, token.line)
         else

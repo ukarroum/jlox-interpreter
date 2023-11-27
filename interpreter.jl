@@ -24,6 +24,7 @@ end
 struct LoxClass
     class::Class
     methods::Dict
+    superclass::Union{LoxClass, Nothing}
 end
 
 struct LoxInstance
@@ -258,7 +259,13 @@ function call(closure::Closure, args, locals)
 end
 
 function evaluate(expr::Class, env, locals)
-    env.vars[expr.name.lexeme] = LoxClass(expr, Dict())
+    if !isnothing(expr.superclass)
+        superclass = evaluate(expr.superclass, env, locals)
+    else
+        superclass = nothing
+    end
+
+    env.vars[expr.name.lexeme] = LoxClass(expr, Dict(), superclass)
 
     for method in expr.methods
         env.vars[expr.name.lexeme].methods[method.name.lexeme] =  Closure(method, env)
@@ -284,15 +291,22 @@ function evaluate(expr::Get, env, locals)
 
     if haskey(instance.attrs, expr.name.lexeme)
         instance.attrs[expr.name.lexeme]
-    elseif haskey(instance.class.methods, expr.name.lexeme)
-        new_env = Env(Dict(), instance.class.methods[expr.name.lexeme].env)
-        new_env.vars["this"] = instance
-
-        Closure(instance.class.methods[expr.name.lexeme].fct, new_env)
     else
-        Base.error("Couldn't resolve $expr.name.lexeme on $instance")
+        find_method(instance.class, expr.name.lexeme, instance)
     end
+end
 
+function find_method(class::LoxClass, name::String, instance)
+    if haskey(class.methods, name)
+        new_env = Env(Dict(), class.methods[name].env)
+        new_env.vars["this"] = instance
+        
+        Closure(class.methods[name].fct, new_env)
+    elseif !isnothing(class.superclass)
+        find_method(class.superclass, name, instance)
+    else
+        Base.error("Couldn't resolve $name on $class")
+    end
 end
 
 function evaluate(expr::Set, env, locals)
