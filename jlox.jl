@@ -8,7 +8,15 @@ function execute_file(file)
 end
 
 function repl()
-    
+    while true
+        print(">> ")
+        line = readline()
+        if line == ""
+            break
+        end
+        
+        run(line)
+    end
 end
 
 function run(code)
@@ -18,7 +26,6 @@ function run(code)
 end
 
 if size(ARGS)[1] == 0
-    execute_file("test.lox")
     repl()
 elseif size(ARGS)[1] == 1
     execute_file(ARGS[1])
