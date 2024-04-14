@@ -93,7 +93,18 @@ function scan(code)
             end
         elseif c == '/'
             if peek_ahead(code, i) == '/'
-                break
+                while(i <= length(code) && code[i] != '\n')
+                    i += 1
+                end
+                line_nb += 1
+            elseif peek_ahead(code, i) == '*'
+                i += 2
+                while(i + 1 <= length(code) && (code[i] != '*' || code[i + 1] != '/'))
+                    if(code[i] == '\n')
+                        line_nb += 1
+                    end
+                    i += 1
+                end
             else
                 push!(tokens, Token(typee=SLASH, line=line_nb))
             end
