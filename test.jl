@@ -25,6 +25,11 @@ integration_tests = [
     IntegTest("assignment/associativity.lox","""c
     c
     c
+    """),
+    IntegTest("assignment/global.lox", """before
+    after
+    arg
+    arg
     """)
 ]
 
