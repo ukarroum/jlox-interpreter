@@ -6,7 +6,7 @@ struct IntegTest
 end
 
 integration_tests = [
-    
+    IntegTest("empty_file.lox", "")
 ]
 
 if size(ARGS)[1] != 1
@@ -14,11 +14,11 @@ if size(ARGS)[1] != 1
 else
     test_folder = ARGS[1]
     for test in integration_tests
-        result = read(`julia jlox $test_folder/$path`, String)
-        if result == expected
-            println("$path: OK")
+        result = read(`julia jlox.jl $test_folder/$(test.path)`, String)
+        if result == test.expected_res
+            println("$(test.path): OK")
         else
-            println("$path: KO")
+            println("$(path.path): KO")
         end
     end
 end
