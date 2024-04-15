@@ -110,6 +110,14 @@ struct Super <: Expr
 end
 
 
+# Character to character same functon as the one in the scanner
+# Maybe I'll add a common module later on
+function error(line, msg)
+    println("[line $line] Error: $msg")
+    exit(1)
+end
+
+
 function match(tokens, token_types...)
     if isempty(tokens)
         return tokens, nothing
@@ -424,7 +432,7 @@ function assignement(tokens)
         elseif expr isa Get
             return tokens, Set(expr.obj, expr.name, val)
         else
-            Base.error("Expected r-expression")
+            error(token.line, "Error at '=': Invalid assignment target.")
         end
     end
     tokens, expr

@@ -30,7 +30,8 @@ integration_tests = [
     after
     arg
     arg
-    """)
+    """),
+    IntegTest("assignment/grouping.lox", "[line 2] Error: Error at '=': Invalid assignment target.\n")
 ]
 
 if size(ARGS)[1] != 1
