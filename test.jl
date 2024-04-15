@@ -21,7 +21,11 @@ integration_tests = [
     0
     4
     """),
-    IntegTest("unexpected_character.lox", "[line 3] Error: Unexpected character '|'\n")
+    IntegTest("unexpected_character.lox", "[line 3] Error: Unexpected character '|'\n"),
+    IntegTest("assignment/associativity.lox","""c
+    c
+    c
+    """)
 ]
 
 if size(ARGS)[1] != 1
