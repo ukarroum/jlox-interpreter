@@ -113,6 +113,10 @@ function evaluate(expr::Binary, env, locals)
         end
     end
 
+    if expr.operator.type == SLASH && isinteger(left) && isinteger(right)
+        return left % right == 0 ? left ÷ right : left / right
+    end
+
     bin_ops[expr.operator.type](left, right)
 end
 

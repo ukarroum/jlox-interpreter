@@ -6,7 +6,21 @@ struct IntegTest
 end
 
 integration_tests = [
-    IntegTest("empty_file.lox", "")
+    IntegTest("empty_file.lox", ""),
+    IntegTest("precedence.lox", """14
+    8
+    4
+    0
+    true
+    true
+    true
+    true
+    0
+    0
+    0
+    0
+    4
+    """)
 ]
 
 if size(ARGS)[1] != 1

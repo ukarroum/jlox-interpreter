@@ -106,7 +106,7 @@ function scan(code)
                     i += 1
                 end
             else
-                push!(tokens, Token(typee=SLASH, line=line_nb))
+                push!(tokens, Token(type=SLASH, line=line_nb))
             end
         elseif c == ' ' || c == '\r' || c == '\t' || c == '\n'
             i += 1

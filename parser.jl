@@ -583,10 +583,10 @@ function primary(tokens)
             tokens, Literal(token.literal)
         end
     else
-        tokens, token = match(tokens, RIGHT_PAREN)
+        tokens, token = match(tokens, LEFT_PAREN)
         if !isnothing(token)
             tokens, expr = expression(tokens)
-            tokens, token = match(tokens, LEFT_PAREN)
+            tokens, token = match(tokens, RIGHT_PAREN)
             if !isnothing(token)
                 tokens, Grouping(expr)
             else
