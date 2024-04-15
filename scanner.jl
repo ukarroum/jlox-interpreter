@@ -11,7 +11,7 @@ end
 
 
 function error(line, msg)
-    println("[ERROR] Scanner: line $line - $msg")
+    println("[line $line] Error: $msg")
     exit(1)
 end
 
@@ -163,6 +163,8 @@ function scan(code)
                 push!(tokens, Token(type=IDENTIFIER, lexeme=lexeme, line=line_nb))
             end
             i = j - 1
+        else
+            error(line_nb, "Unexpected character '$c'")
         end
         i += 1
     end

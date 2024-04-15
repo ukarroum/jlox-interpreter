@@ -20,7 +20,8 @@ integration_tests = [
     0
     0
     4
-    """)
+    """),
+    IntegTest("unexpected_character.lox", "[line 3] Error: Unexpected character '|'\n")
 ]
 
 if size(ARGS)[1] != 1
@@ -28,11 +29,11 @@ if size(ARGS)[1] != 1
 else
     test_folder = ARGS[1]
     for test in integration_tests
-        result = read(`julia jlox.jl $test_folder/$(test.path)`, String)
+        result = read(ignorestatus(`julia jlox.jl $test_folder/$(test.path)`), String)
         if result == test.expected_res
             println("$(test.path): OK")
         else
-            println("$(path.path): KO")
+            println("$(test.path): KO")
         end
     end
 end
