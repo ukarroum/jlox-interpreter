@@ -33,7 +33,8 @@ integration_tests = [
     """),
     IntegTest("assignment/grouping.lox", "[line 2] Error: Error at '=': Invalid assignment target.\n"),
     IntegTest("assignment/infix_operator.lox", "[line 3] Error: Error at '=': Invalid assignment target."),
-    IntegTest("assignment/prefix_operator.lox", "[line 2] Error: Error at '=': Invalid assignment target.")
+    IntegTest("assignment/prefix_operator.lox", "[line 2] Error: Error at '=': Invalid assignment target."),
+    IntegTest("assignment/syntax.lox", "var\nvar\n")
 ]
 
 if size(ARGS)[1] != 1
